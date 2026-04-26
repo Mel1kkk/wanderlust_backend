@@ -16,6 +16,8 @@ class ChildrenGroup(BaseEntity):
     title = Column(String(128), nullable=False)
     age_group = Column(String(32), nullable=False)
     children_count = Column(Integer, default=0)
+    boys = Column(Integer, default=0)
+    girls = Column(Integer, default=0)
     general_notes = Column(Text, default='')
     plan = Column(Text, default='No Plan')
     is_completed = Column(Boolean, default=False, nullable=False)
