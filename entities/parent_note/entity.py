@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, Text, ForeignKey, String, select, update, delete
+from sqlalchemy import Column, Integer, Text, ForeignKey, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.db import BaseEntity
+
 
 class ParentNote(BaseEntity):
     __tablename__ = 'parent_notes'
@@ -9,11 +10,18 @@ class ParentNote(BaseEntity):
     group_id = Column(Integer, ForeignKey('children_groups.id', ondelete='CASCADE'), nullable=False)
     parent_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     parent_name = Column(String(100), nullable=False)
+    child_id = Column(Integer, ForeignKey('children.id', ondelete='CASCADE'), nullable=False)
     parent_note = Column(Text, nullable=False)
 
     @classmethod
-    async def create(cls, db: AsyncSession, group_id: int, parent_user_id: int, parent_name: str, parent_note: str):
-        note = cls(group_id=group_id, parent_user_id=parent_user_id, parent_name=parent_name, parent_note=parent_note)
+    async def create(cls, db: AsyncSession, group_id: int, parent_user_id: int, parent_name: str, child_id: int, parent_note: str):
+        note = cls(
+            group_id=group_id,
+            parent_user_id=parent_user_id,
+            parent_name=parent_name,
+            child_id=child_id,
+            parent_note=parent_note
+        )
         db.add(note)
         await db.commit()
         await db.refresh(note)
@@ -22,6 +30,11 @@ class ParentNote(BaseEntity):
     @classmethod
     async def list_by_group(cls, db: AsyncSession, group_id: int):
         result = await db.execute(select(cls).where(cls.group_id == group_id).order_by(cls.id.desc()))
+        return result.scalars().all()
+
+    @classmethod
+    async def list_by_parent(cls, db: AsyncSession, parent_user_id: int):
+        result = await db.execute(select(cls).where(cls.parent_user_id == parent_user_id).order_by(cls.id.desc()))
         return result.scalars().all()
 
     @classmethod

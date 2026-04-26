@@ -1,25 +1,48 @@
 from pydantic import BaseModel, Field
+from typing import List
 
 
 class ParentAccountCreate(BaseModel):
     group_id: int = Field(example=1)
+    child_ids: List[int] = Field(example=[1, 2])
     login: str = Field(min_length=3, max_length=50, example='parent_group_01')
 
 
 class ParentAccountOut(BaseModel):
-    group_id: int
     parent_user_id: int
     login: str
     password: str
     role: str
+    child_ids: List[int]
+
+
+class ParentChildrenUpdate(BaseModel):
+    child_ids: List[int] = Field(example=[3, 4])
+
+
+class ParentChildrenOut(BaseModel):
+    parent_user_id: int
+    login: str
+    child_ids: List[int]
 
 
 class ParentPasswordResetIn(BaseModel):
-    group_id: int = Field(example=1)
+    parent_user_id: int = Field(example=5)
 
 
 class ParentPasswordResetOut(BaseModel):
-    group_id: int
     parent_user_id: int
     login: str
     password: str
+
+
+class ParentProfileUpdate(BaseModel):
+    firstname: str = Field(min_length=1, max_length=25, example='Aruzhan')
+    lastname: str = Field(min_length=1, max_length=25, example='Bekova')
+
+
+class ParentProfileOut(BaseModel):
+    id: int
+    firstname: str
+    lastname: str
+    login: str

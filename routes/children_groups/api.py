@@ -4,11 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from utils.db import connect_db
 from utils.facades.Auth import Auth
 from entities.children_group.entity import ChildrenGroup
-from entities.children_group.types import ChildrenGroupCreate, ChildrenGroupOut
+from entities.children_group.types import ChildrenGroupCreate, ChildrenGroupOut, PlanUpdate, CompleteUpdate
 from entities.user.entity import User
-from entities.children_group.types import PlanUpdate
 from entities.plan_notes.entity import PlanNote
-from entities.children_group.types import CompleteUpdate
+from entities.parent_children.entity import ParentChild
 
 router = APIRouter()
 
@@ -21,31 +20,22 @@ async def create_group(
 ):
     if me.role != 'educator':
         raise HTTPException(status_code=403, detail='Only educators can create groups')
-    
+
     title_raw = data.title.strip()
-
     if not title_raw:
-        raise HTTPException(
-            status_code=400,
-            detail="Group title cannot be empty"
-        )
-    
-    title_normalized = title_raw.lower()
+        raise HTTPException(status_code=400, detail='Group title cannot be empty')
 
+    title_normalized = title_raw.lower()
     existing_groups = await ChildrenGroup.list_by_user(db, me.id)
     for g in existing_groups:
         if g.title.lower() == title_normalized:
-            raise HTTPException(
-                status_code=409,
-                detail="Group with this title already exists"
-            )
+            raise HTTPException(status_code=409, detail='Group with this title already exists')
 
     group = await ChildrenGroup.new(
         db,
         user_id=me.id,
         title=data.title,
         age_group=data.age_group,
-        # children_count=data.children_count,
         general_notes=data.general_notes,
         has_special_needs=data.has_special_needs,
         special_notes=data.special_notes
@@ -57,12 +47,10 @@ async def create_group(
         age_group=group.age_group,
         children_count=group.children_count,
         boys_count=group.boys,
-        girls_count=group.girls,        
+        girls_count=group.girls,
         general_notes=group.general_notes,
-        
         has_special_needs=group.has_special_needs,
         special_notes=group.special_notes,
-        
         plan=group.plan,
         parent_user_id=group.parent_user_id,
         is_completed=group.is_completed
@@ -74,37 +62,38 @@ async def list_groups(
     db: AsyncSession = Depends(connect_db),
     me: User = Depends(Auth.authenticate_me)
 ):
-
     if me.role == 'educator':
         groups = await ChildrenGroup.list_by_user(db, me.id)
-    
-    elif me.role == 'parent':
-        group = await ChildrenGroup.get_by_parent_user_id(db, me.id)
-        groups = [group] if group else []
-    
-    else:
-        raise HTTPException(status_code=403, detail="Unknown role")
 
-    result = []
-    for g in groups:
-        result.append(ChildrenGroupOut(
+    elif me.role == 'parent':
+        links = await ParentChild.list_by_parent(db, me.id)
+        if links:
+            group = await ChildrenGroup.get_by_id(db, links[0].group_id)
+            groups = [group] if group else []
+        else:
+            groups = []
+
+    else:
+        raise HTTPException(status_code=403, detail='Unknown role')
+
+    return [
+        ChildrenGroupOut(
             id=g.id,
             title=g.title,
             age_group=g.age_group,
             children_count=g.children_count,
             boys_count=g.boys,
-            girls_count=g.girls,   
+            girls_count=g.girls,
             general_notes=g.general_notes,
-
             has_special_needs=g.has_special_needs,
             special_notes=g.special_notes,
-
             plan=g.plan,
             parent_user_id=g.parent_user_id,
             is_completed=g.is_completed
-        ))
+        )
+        for g in groups
+    ]
 
-    return result
 
 @router.delete('/{group_id}', status_code=204)
 async def delete_group(
@@ -112,33 +101,20 @@ async def delete_group(
     db: AsyncSession = Depends(connect_db),
     me: User = Depends(Auth.authenticate_me)
 ):
-    # ==============================
-    # ROLE CHECK
-    # ==============================
     if me.role != 'educator':
         raise HTTPException(status_code=403, detail='Only educators can delete groups')
 
-    # ==============================
-    # GET GROUP (ownership check)
-    # ==============================
     group = await ChildrenGroup.get_by_id(db, group_id, user_id=me.id)
-
     if not group:
         raise HTTPException(status_code=404, detail='Group not found')
 
-    # ==============================
-    # ONLY DETACH RELATION (OPTIONAL)
-    # ==============================
     group.parent_user_id = None
     db.add(group)
 
-    # ==============================
-    # DELETE GROUP (CASCADE HANDLES EVERYTHING ELSE)
-    # ==============================
     await db.delete(group)
     await db.commit()
-
     return
+
 
 @router.patch('/{group_id}/plan', response_model=ChildrenGroupOut)
 async def update_group_plan(
@@ -168,15 +144,16 @@ async def update_group_plan(
         title=group.title,
         age_group=group.age_group,
         children_count=group.children_count,
+        boys_count=group.boys,
+        girls_count=group.girls,
         general_notes=group.general_notes,
-
         has_special_needs=group.has_special_needs,
         special_notes=group.special_notes,
-        
         plan=group.plan,
         parent_user_id=group.parent_user_id,
         is_completed=group.is_completed
     )
+
 
 @router.patch('/{group_id}/complete', response_model=ChildrenGroupOut)
 async def update_completed_status(
@@ -202,7 +179,11 @@ async def update_completed_status(
         title=group.title,
         age_group=group.age_group,
         children_count=group.children_count,
+        boys_count=group.boys,
+        girls_count=group.girls,
         general_notes=group.general_notes,
+        has_special_needs=group.has_special_needs,
+        special_notes=group.special_notes,
         plan=group.plan,
         parent_user_id=group.parent_user_id,
         is_completed=group.is_completed
