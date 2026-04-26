@@ -54,10 +54,20 @@ async def list_groups(
     db: AsyncSession = Depends(connect_db),
     me: User = Depends(Auth.authenticate_me)
 ):
-    if me.role != 'educator':
-        raise HTTPException(status_code=403, detail='Only educators can view groups list')
+    # if me.role != 'educator':
+    #     raise HTTPException(status_code=403, detail='Only educators can view groups list')
 
-    groups = await ChildrenGroup.list_by_user(db, me.id)
+    # groups = await ChildrenGroup.list_by_user(db, me.id)
+
+    if me.role == 'educator':
+        groups = await ChildrenGroup.list_by_user(db, me.id)
+    
+    elif me.role == 'parent':
+        group = await ChildrenGroup.get_by_parent_user_id(db, me.id)
+        groups = [group] if group else []
+    
+    else:
+        raise HTTPException(status_code=403, detail="Unknown role")
 
     result = []
     for g in groups:
