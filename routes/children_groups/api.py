@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from entities.child.entity import Child
+from entities.child.types import ChildOut
 from utils.db import connect_db
 from utils.facades.Auth import Auth
 from entities.children_group.entity import ChildrenGroup
@@ -129,6 +131,95 @@ async def list_groups(
         )
 
     return groups_with_parents
+
+@router.get('/group/{group_id}/free', response_model=list[ChildOut])
+async def get_free_children(
+    group_id: int,
+    db: AsyncSession = Depends(connect_db),
+    me: User = Depends(Auth.authenticate_me)
+):
+    if me.role != 'educator':
+        raise HTTPException(403, 'Only educators can view this')
+
+    group = await ChildrenGroup.get_by_id(db, group_id, user_id=me.id)
+    if not group:
+        raise HTTPException(404, 'Group not found')
+
+    children = await Child.list_by_group(db, group_id)
+
+    result = []
+    for child in children:
+        taken = await ParentChild.get_by_child(db, child.id)
+        if not taken:
+            result.append(child)
+
+    return result
+
+@router.get('/{parent_user_id}/available-children', response_model=list[ChildOut])
+async def get_available_children_for_parent(
+    parent_user_id: int,
+    db: AsyncSession = Depends(connect_db),
+    me: User = Depends(Auth.authenticate_me)
+):
+    if me.role != 'educator':
+        raise HTTPException(403, 'Only educators can view this')
+
+    parent = await User.get_by_id(db, parent_user_id)
+    if not parent or parent.role != 'parent':
+        raise HTTPException(404, 'Parent not found')
+
+    existing_links = await ParentChild.list_by_parent(db, parent_user_id)
+    if not existing_links:
+        raise HTTPException(400, 'Parent has no group assigned yet')
+
+    group_id = existing_links[0].group_id
+    group = await ChildrenGroup.get_by_id(db, group_id, user_id=me.id)
+    if not group:
+        raise HTTPException(403, 'This parent does not belong to your group')
+
+    existing_child_ids = {l.child_id for l in existing_links}
+    all_children = await Child.list_by_group(db, group_id)
+
+    result = []
+    for child in all_children:
+        if child.id in existing_child_ids:
+            continue
+        taken = await ParentChild.get_by_child(db, child.id)
+        if not taken:
+            result.append(child)
+
+    return result
+
+
+@router.get('/{parent_user_id}/children', response_model=list[ChildOut])
+async def get_parent_children(
+    parent_user_id: int,
+    db: AsyncSession = Depends(connect_db),
+    me: User = Depends(Auth.authenticate_me)
+):
+    if me.role != 'educator':
+        raise HTTPException(403, 'Only educators can view this')
+
+    parent = await User.get_by_id(db, parent_user_id)
+    if not parent or parent.role != 'parent':
+        raise HTTPException(404, 'Parent not found')
+
+    links = await ParentChild.list_by_parent(db, parent_user_id)
+    if not links:
+        return []
+
+    group_id = links[0].group_id
+    group = await ChildrenGroup.get_by_id(db, group_id, user_id=me.id)
+    if not group:
+        raise HTTPException(403, 'This parent does not belong to your group')
+
+    result = []
+    for link in links:
+        child = await Child.get_by_id(db, link.child_id)
+        if child:
+            result.append(child)
+
+    return result
 
 @router.delete('/{group_id}', status_code=204)
 async def delete_group(
