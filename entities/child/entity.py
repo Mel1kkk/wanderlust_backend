@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum, select, and_
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Text, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.db import BaseEntity
 import enum
@@ -19,8 +19,10 @@ class Child(BaseEntity):
     age = Column(Integer, nullable=False)
     gender = Column(Enum(GenderEnum), nullable=False)
 
+    note_about_child = Column(Text, nullable=False, default="No notes about this child")
+
     @classmethod
-    async def create(cls, db: AsyncSession, group_id: int, first_name: str, last_name: str, age: int, gender: GenderEnum):
+    async def create(cls, db: AsyncSession, group_id: int, first_name: str, last_name: str, age: int, gender: GenderEnum, note_about_child: str):
         existing = await db.execute(
             select(cls).where(
                 and_(
@@ -38,8 +40,17 @@ class Child(BaseEntity):
             first_name=first_name,
             last_name=last_name,
             age=age,
-            gender=gender
+            gender=gender,
+            note_about_child=note_about_child
         )
+        db.add(child)
+        await db.commit()
+        await db.refresh(child)
+        return child
+
+    @classmethod
+    async def update_note(cls, db: AsyncSession, child: 'Child', new_note: str):  # // NEW METHOD
+        child.note_about_child = new_note
         db.add(child)
         await db.commit()
         await db.refresh(child)

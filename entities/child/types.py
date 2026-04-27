@@ -1,33 +1,3 @@
-# from pydantic import BaseModel, Field
-# from enum import Enum
-
-
-# class GenderEnum(str, Enum):
-#     boy = 'boy'
-#     girl = 'girl'
-
-
-# class ChildCreate(BaseModel):
-#     group_id: int
-#     first_name: str = Field(min_length=1, max_length=50)
-#     last_name: str = Field(min_length=1, max_length=50)
-#     age: int = Field(ge=1, le=7)
-#     gender: GenderEnum
-
-
-# class ChildOut(BaseModel):
-#     id: int
-#     group_id: int
-#     first_name: str
-#     last_name: str
-#     age: int
-#     gender: GenderEnum
-
-#     model_config = {
-#         'from_attributes': True
-#     }
-
-
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
@@ -48,6 +18,12 @@ def normalize_name(value: str) -> str:
 
     return value.lower().capitalize()
 
+def validate_note(value: str) -> str:
+    value = value.strip()
+    if not value or len(value) < 5:
+        raise ValueError("Note must be at least 5 characters and not empty")
+    return value
+
 
 class ChildCreate(BaseModel):
     group_id: int
@@ -55,6 +31,8 @@ class ChildCreate(BaseModel):
     last_name: str = Field(min_length=1, max_length=50)
     age: int = Field(ge=1, le=7)
     gender: GenderEnum
+
+    note_about_child: str | None = None
 
     @field_validator('first_name')
     @classmethod
@@ -67,6 +45,20 @@ class ChildCreate(BaseModel):
     def validate_last_name(cls, v):
         return normalize_name(v)
 
+    @field_validator('note_about_child')
+    @classmethod
+    def validate_note_field(cls, v):
+        if v is None:
+            return v
+        return validate_note(v)
+
+class ChildNoteUpdate(BaseModel):
+    note_about_child: str
+
+    @field_validator('note_about_child')
+    @classmethod
+    def validate_note_field(cls, v):
+        return validate_note(v)
 
 class ChildOut(BaseModel):
     id: int
@@ -75,6 +67,8 @@ class ChildOut(BaseModel):
     last_name: str
     age: int
     gender: GenderEnum
+
+    note_about_child: str
 
     model_config = {
         'from_attributes': True
