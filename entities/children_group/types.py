@@ -54,6 +54,8 @@ class ChildrenGroupOut(BaseModel):
     parent_user_id: int | None = None
     is_completed: bool
 
+    parents: list[dict] = Field(default_factory=list)
+
     model_config = {
         'from_attributes': True
     }

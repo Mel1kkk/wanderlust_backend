@@ -76,24 +76,59 @@ async def list_groups(
     else:
         raise HTTPException(status_code=403, detail='Unknown role')
 
-    return [
-        ChildrenGroupOut(
-            id=g.id,
-            title=g.title,
-            age_group=g.age_group,
-            children_count=g.children_count,
-            boys_count=g.boys,
-            girls_count=g.girls,
-            general_notes=g.general_notes,
-            has_special_needs=g.has_special_needs,
-            special_notes=g.special_notes,
-            plan=g.plan,
-            parent_user_id=g.parent_user_id,
-            is_completed=g.is_completed
-        )
-        for g in groups
-    ]
+    # return [
+    #     ChildrenGroupOut(
+    #         id=g.id,
+    #         title=g.title,
+    #         age_group=g.age_group,
+    #         children_count=g.children_count,
+    #         boys_count=g.boys,
+    #         girls_count=g.girls,
+    #         general_notes=g.general_notes,
+    #         has_special_needs=g.has_special_needs,
+    #         special_notes=g.special_notes,
+    #         plan=g.plan,
+    #         parent_user_id=g.parent_user_id,
+    #         is_completed=g.is_completed
+    #     )
+    #     for g in groups
+    # ]
 
+    groups_with_parents = []
+
+    for g in groups:
+        parents = []
+
+        links = await ParentChild.list_by_group(db, g.id)
+        parent_ids = set(l.parent_user_id for l in links)
+
+        for pid in parent_ids:
+            parent = await User.get_by_id(db, pid)
+            if parent:
+                parents.append({
+                    "parent_id": parent.id,
+                    "full_name": f"{parent.firstname} {parent.lastname}"
+                })
+
+        groups_with_parents.append(
+            ChildrenGroupOut(
+                id=g.id,
+                title=g.title,
+                age_group=g.age_group,
+                children_count=g.children_count,
+                boys_count=g.boys,
+                girls_count=g.girls,
+                general_notes=g.general_notes,
+                has_special_needs=g.has_special_needs,
+                special_notes=g.special_notes,
+                plan=g.plan,
+                parent_user_id=g.parent_user_id,
+                is_completed=g.is_completed,
+                parents=parents
+            )
+        )
+
+    return groups_with_parents
 
 @router.delete('/{group_id}', status_code=204)
 async def delete_group(

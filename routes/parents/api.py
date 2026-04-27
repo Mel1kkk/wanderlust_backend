@@ -16,6 +16,8 @@ from entities.parent_account.types import (
     ParentPasswordResetIn, ParentPasswordResetOut,
     ParentProfileUpdate, ParentProfileOut
 )
+from entities.parent_children.entity import ParentChild
+from entities.child.entity import Child
 
 router = APIRouter()
 
@@ -219,3 +221,32 @@ async def delete_parent_account(
     await db.delete(parent)
     await db.commit()
     return
+
+@router.get('/me/details')
+async def get_my_details(
+    db: AsyncSession = Depends(connect_db),
+    me: User = Depends(Auth.authenticate_me)
+):
+    if me.role != 'parent':
+        raise HTTPException(403, 'Only parents can access this endpoint')
+
+    links = await ParentChild.list_by_parent(db, me.id)
+
+    children = []
+    for link in links:
+        child = await Child.get_by_id(db, link.child_id)
+        if child:
+            children.append({
+                "child_id": child.id,
+                "first_name": child.first_name,
+                "last_name": child.last_name,
+                "full_name": f"{child.first_name} {child.last_name}"  # // NEW
+            })
+
+    return {
+        "parent_id": me.id,
+        "firstname": me.firstname,
+        "lastname": me.lastname,
+        "full_name": f"{me.firstname} {me.lastname}",  # // NEW
+        "children": children
+    }
