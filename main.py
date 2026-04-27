@@ -16,6 +16,16 @@ app = FastAPI(
     lifespan = lifespan
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    # allow_origins = ['*'],
+    allow_origins=["http://138.197.40.137:8080"],
+    allow_credentials=True,
+    allow_methods = ['*'],
+    allow_headers = ['*'],
+    expose_headers=["auth"]
+)
+
 app.include_router(auth_router, prefix = '/auth')
 app.include_router(chatbot_router, prefix='/chatbot')
 app.include_router(children_groups, prefix="/children_groups")
@@ -23,15 +33,6 @@ app.include_router(children_router, prefix='/children')
 app.include_router(plan_notes_router, prefix="/plan_notes")
 app.include_router(parents_router, prefix='/parents')
 app.include_router(parent_notes_router, prefix='/parent_notes')
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins = ['*'],
-    allow_credentials=True,
-    allow_headers = ['*'],
-    allow_methods = ['*'],
-    expose_headers=["auth"]
-)
 
 
 # if __name__ == '__main__':

@@ -20,7 +20,7 @@ async def build_note_out(note: ParentNote, db: AsyncSession) -> ParentNoteOut:
         id=note.id,
         group_id=note.group_id,
         parent_user_id=note.parent_user_id,
-        parent_name=note.parent_name,
+        # parent_name=note.parent_name,
         child_id=note.child_id,
         about_who=about_who,
         parent_note=note.parent_note

@@ -10,7 +10,7 @@ class ParentNoteOut(BaseModel):
     id: int
     group_id: int
     parent_user_id: int
-    parent_name: str
+    # parent_name: str
     child_id: int
     about_who: str
     parent_note: str
