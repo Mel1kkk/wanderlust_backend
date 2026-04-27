@@ -16,12 +16,16 @@ router = APIRouter()
 async def build_note_out(note: ParentNote, db: AsyncSession) -> ParentNoteOut:
     child = await Child.get_by_id(db, note.child_id)
     about_who = f"{child.first_name} {child.last_name}" if child else "Unknown"
+
+    parent = await User.get_by_id(db, note.parent_user_id)
+    parent_full_name = f"{parent.firstname} {parent.lastname}" if parent else "Unknown"
+
     return ParentNoteOut(
         id=note.id,
         group_id=note.group_id,
         parent_user_id=note.parent_user_id,
-        # parent_name=note.parent_name,
         child_id=note.child_id,
+        parent_full_name=parent_full_name,
         about_who=about_who,
         parent_note=note.parent_note
     )

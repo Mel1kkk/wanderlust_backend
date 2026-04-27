@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List
-
+from pydantic import BaseModel, Field, field_validator
 
 class ParentAccountCreate(BaseModel):
     group_id: int = Field(example=1)
@@ -36,10 +36,23 @@ class ParentPasswordResetOut(BaseModel):
     password: str
 
 
-class ParentProfileUpdate(BaseModel):
-    firstname: str = Field(min_length=1, max_length=25, example='Aruzhan')
-    lastname: str = Field(min_length=1, max_length=25, example='Bekova')
+# class ParentProfileUpdate(BaseModel):
+#     firstname: str = Field(min_length=1, max_length=25, example='Aruzhan')
+#     lastname: str = Field(min_length=1, max_length=25, example='Bekova')
 
+class ParentProfileUpdate(BaseModel):
+    firstname: str = Field(min_length=3, max_length=23, example='Aruzhan')
+    lastname: str = Field(min_length=3, max_length=23, example='Bekova')
+
+    @field_validator('firstname', 'lastname')
+    @classmethod
+    def normalize_names(cls, v: str):
+        v = v.strip()
+
+        if len(v) < 3:
+            raise ValueError("Name must be at least 3 characters")
+
+        return v.capitalize()
 
 class ParentProfileOut(BaseModel):
     id: int
